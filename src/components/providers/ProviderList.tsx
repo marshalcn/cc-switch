@@ -40,6 +40,7 @@ import { useDevEcoLiveProviderIds } from "@/hooks/useDevEco";
 import { useStreamCheck } from "@/hooks/useStreamCheck";
 import { ProviderCard } from "@/components/providers/ProviderCard";
 import { ProviderEmptyState } from "@/components/providers/ProviderEmptyState";
+import { UnreadableEntriesNotice } from "@/components/common/UnreadableEntriesNotice";
 import {
   useCurrentOmoProviderId,
   useCurrentOmoSlimProviderId,
@@ -537,6 +538,16 @@ export function ProviderList({
     </Notice>
   ) : null;
 
+  // 库里读不出来的供应商不在 providers 里（不能编辑、切换），单独列出、只能删除
+  const unreadableNotice = (
+    <UnreadableEntriesNotice
+      queryKey={["providers", appId, "unreadable"]}
+      load={() => providersApi.getUnreadable(appId)}
+      remove={(id) => providersApi.delete(id, appId)}
+      invalidate={[["providers", appId]]}
+    />
+  );
+
   if (isLoading || (isLiveMembershipPending && sortedProviders.length > 0)) {
     return (
       <div className="space-y-2">
@@ -555,6 +566,7 @@ export function ProviderList({
       <div className="space-y-4">
         {piStateErrorNotice}
         {liveConfigErrorNotice}
+        {unreadableNotice}
         <ProviderEmptyState
           appId={appId}
           onCreate={appHas(appId, "piFamily") ? undefined : onCreate}
@@ -695,6 +707,7 @@ export function ProviderList({
     <div className="space-y-4">
       {piStateErrorNotice}
       {liveConfigErrorNotice}
+      {unreadableNotice}
       {searchSlot && createPortal(searchField, searchSlot)}
       {showListHeader && (
         <div
