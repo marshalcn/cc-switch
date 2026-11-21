@@ -50,6 +50,7 @@ pnpm dev
 |---------|-------------|
 | `pnpm dev` | Start dev server (hot reload) |
 | `pnpm build` | Production build and packaging |
+| `pnpm build:app` | Build the executable only (no installers), embedding the frontend |
 | `pnpm build:renderer` | Build the frontend only, output to `dist/` |
 | `pnpm typecheck` | TypeScript type checking (strict; unused imports or parameters are errors) |
 | `pnpm format` | Format `src/` with Prettier |
@@ -70,6 +71,17 @@ cargo test some_test_name     # Run tests matching a name
 > On a fresh clone where the frontend has never been built, first run `mkdir -p dist` (or `pnpm build:renderer`) at the repository root. Otherwise, cargo commands under `src-tauri` fail to compile because the frontend output directory is missing.
 
 ### Local Build
+
+Use `pnpm build:app` when you just want a runnable executable — it builds the frontend and links the app without producing installers:
+
+```bash
+pnpm build:app              # executable at src-tauri/target/release/cc-switch(.exe)
+pnpm build:app -- --debug   # debug executable instead of release
+```
+
+Prefer `pnpm build:app` over a bare `cargo build --release`: the Tauri CLI compiles with the `tauri/custom-protocol` feature, which is what embeds the built frontend into the binary. Without that feature the app starts with no assets and falls back to `build.devUrl`, so the window opens on `http://localhost:3000` and fails with `ERR_CONNECTION_REFUSED`.
+
+The script exists because `tauri.js` picks how to invoke the native CLI from the basename of `process.argv[0]`, and passes through anything that is not `node`/`bun`/`electron` as if it were a subcommand. Under an Electron-hosted Node (VS Code, JetBrains IDEs, the DSH desktop shell) `argv[0]` is the host executable, so `pnpm tauri build` dies with `error: unrecognized subcommand '.../Code.exe'`. `build:app` re-runs the CLI under the real `node` so both the arguments and the feature flags come out right.
 
 As its final step, `pnpm build` signs the auto-update bundles, which requires the release private key `TAURI_SIGNING_PRIVATE_KEY`. If you don't have the key locally, you can turn off updater bundle generation:
 
@@ -307,6 +319,7 @@ pnpm dev
 |------|------|
 | `pnpm dev` | 启动开发服务器（热重载） |
 | `pnpm build` | 构建生产版本并打包 |
+| `pnpm build:app` | 只构建可执行文件（不打包安装器），前端资源内嵌进二进制 |
 | `pnpm build:renderer` | 只构建前端，输出到 `dist/` |
 | `pnpm typecheck` | TypeScript 类型检查（strict，未使用的 import 或参数会报错） |
 | `pnpm format` | 用 Prettier 格式化 `src/` |
@@ -327,6 +340,17 @@ cargo test some_test_name     # 按名称运行部分测试
 > 刚 clone 下来、还没构建过前端时，请先在仓库根目录执行 `mkdir -p dist`（或 `pnpm build:renderer`）。否则 `src-tauri` 下的 cargo 命令会因为找不到前端产物目录而编译失败。
 
 ### 本地打包
+
+只要一个能跑起来的可执行文件时，用 `pnpm build:app`——它会构建前端并链接出应用，但不生成安装包：
+
+```bash
+pnpm build:app              # 产物在 src-tauri/target/release/cc-switch(.exe)
+pnpm build:app -- --debug   # 改为构建调试版
+```
+
+不要用裸 `cargo build --release` 代替：Tauri CLI 会带上 `tauri/custom-protocol` feature，正是它把构建好的前端内嵌进二进制。少了这个 feature，应用启动时没有任何资源，会退回 `build.devUrl`，窗口打开 `http://localhost:3000` 并报 `ERR_CONNECTION_REFUSED`（白屏）。
+
+这个脚本存在的原因是 `tauri.js` 用 `process.argv[0]` 的文件名决定怎么调用原生 CLI，凡是既不是 `node`/`bun`/`electron` 的都被当成"未知的启动器"原样塞进子命令。在 Electron 宿主里跑 Node 时（VS Code、JetBrains 系 IDE、DSH 桌面端），`argv[0]` 是宿主程序，于是 `pnpm tauri build` 会报 `error: unrecognized subcommand '.../Code.exe'`。`build:app` 改用真正的 `node` 重新执行 CLI，参数和 feature 就都对了。
 
 `pnpm build` 最后会为自动更新包签名，这一步需要发布用的私钥 `TAURI_SIGNING_PRIVATE_KEY`。本地没有私钥时，可以关闭更新包生成：
 
